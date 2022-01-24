@@ -6,14 +6,9 @@ import argparse
 import functools
 import os
 import pathlib
-import subprocess
 import sys
 import tarfile
 from typing import Callable
-
-# workaround for https://github.com/gradio-app/gradio/issues/483
-command = 'pip install -U gradio==2.7.0'
-subprocess.call(command.split())
 
 import gradio as gr
 import huggingface_hub
