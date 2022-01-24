@@ -1,0 +1,3 @@
+[submodule "bizarre-pose-estimator"]
+	path = bizarre-pose-estimator
+	url = https://github.com/ShuhongChen/bizarre-pose-estimator
