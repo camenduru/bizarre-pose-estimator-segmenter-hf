@@ -23,8 +23,12 @@ sys.path.insert(0, 'bizarre-pose-estimator')
 
 from _util.twodee_v0 import I as ImageWrapper
 
-TOKEN = os.environ['TOKEN']
+ORIGINAL_REPO_URL = 'https://github.com/ShuhongChen/bizarre-pose-estimator'
+TITLE = 'ShuhongChen/bizarre-pose-estimator (segmenter)'
+DESCRIPTION = f'A demo for {ORIGINAL_REPO_URL}'
+ARTICLE = None
 
+TOKEN = os.environ['TOKEN']
 MODEL_REPO = 'hysts/bizarre-pose-estimator-models'
 MODEL_FILENAME = 'segmenter.pth'
 
@@ -144,11 +148,6 @@ def main():
                              final_head=final_head)
     func = functools.update_wrapper(func, predict)
 
-    repo_url = 'https://github.com/ShuhongChen/bizarre-pose-estimator'
-    title = 'ShuhongChen/bizarre-pose-estimator (segmenter)'
-    description = f'A demo for {repo_url}'
-    article = None
-
     gr.Interface(
         func,
         [
@@ -160,11 +159,11 @@ def main():
                              label='Score Threshold'),
         ],
         gr.outputs.Image(label='Masked'),
-        theme=args.theme,
-        title=title,
-        description=description,
-        article=article,
         examples=examples,
+        title=TITLE,
+        description=DESCRIPTION,
+        article=ARTICLE,
+        theme=args.theme,
         allow_screenshot=args.allow_screenshot,
         allow_flagging=args.allow_flagging,
         live=args.live,
