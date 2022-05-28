@@ -25,7 +25,7 @@ from _util.twodee_v0 import I as ImageWrapper
 
 TITLE = 'ShuhongChen/bizarre-pose-estimator (segmenter)'
 DESCRIPTION = 'This is an unofficial demo for https://github.com/ShuhongChen/bizarre-pose-estimator.'
-ARTICLE = None
+ARTICLE = '<center><img src="https://visitor-badge.glitch.me/badge?page_id=hysts.bizarre-pose-estimator-segmenter" alt="visitor badge"/></center>'
 
 TOKEN = os.environ['TOKEN']
 MODEL_REPO = 'hysts/bizarre-pose-estimator-models'
