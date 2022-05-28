@@ -23,9 +23,8 @@ sys.path.insert(0, 'bizarre-pose-estimator')
 
 from _util.twodee_v0 import I as ImageWrapper
 
-ORIGINAL_REPO_URL = 'https://github.com/ShuhongChen/bizarre-pose-estimator'
 TITLE = 'ShuhongChen/bizarre-pose-estimator (segmenter)'
-DESCRIPTION = f'A demo for {ORIGINAL_REPO_URL}'
+DESCRIPTION = 'This is an unofficial demo for https://github.com/ShuhongChen/bizarre-pose-estimator.'
 ARTICLE = None
 
 TOKEN = os.environ['TOKEN']
