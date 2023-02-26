@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import functools
 import os
 import pathlib
@@ -25,27 +24,10 @@ from _util.twodee_v0 import I as ImageWrapper
 
 TITLE = 'ShuhongChen/bizarre-pose-estimator (segmenter)'
 DESCRIPTION = 'This is an unofficial demo for https://github.com/ShuhongChen/bizarre-pose-estimator.'
-ARTICLE = '<center><img src="https://visitor-badge.glitch.me/badge?page_id=hysts.bizarre-pose-estimator-segmenter" alt="visitor badge"/></center>'
 
-TOKEN = os.environ['TOKEN']
+HF_TOKEN = os.getenv('HF_TOKEN')
 MODEL_REPO = 'hysts/bizarre-pose-estimator-models'
 MODEL_FILENAME = 'segmenter.pth'
-
-
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--device', type=str, default='cpu')
-    parser.add_argument('--score-slider-step', type=float, default=0.05)
-    parser.add_argument('--score-threshold', type=float, default=0.5)
-    parser.add_argument('--theme', type=str)
-    parser.add_argument('--live', action='store_true')
-    parser.add_argument('--share', action='store_true')
-    parser.add_argument('--port', type=int)
-    parser.add_argument('--disable-queue',
-                        dest='enable_queue',
-                        action='store_false')
-    parser.add_argument('--allow-flagging', type=str, default='never')
-    return parser.parse_args()
 
 
 def load_sample_image_paths() -> list[pathlib.Path]:
@@ -55,7 +37,7 @@ def load_sample_image_paths() -> list[pathlib.Path]:
         path = huggingface_hub.hf_hub_download(dataset_repo,
                                                'images.tar.gz',
                                                repo_type='dataset',
-                                               use_auth_token=TOKEN)
+                                               use_auth_token=HF_TOKEN)
         with tarfile.open(path) as f:
             f.extractall()
     return sorted(image_dir.glob('*'))
@@ -65,7 +47,7 @@ def load_model(
         device: torch.device) -> tuple[torch.nn.Module, torch.nn.Module]:
     path = huggingface_hub.hf_hub_download(MODEL_REPO,
                                            MODEL_FILENAME,
-                                           use_auth_token=TOKEN)
+                                           use_auth_token=HF_TOKEN)
     ckpt = torch.load(path)
 
     model = torchvision.models.segmentation.deeplabv3_resnet101()
@@ -115,59 +97,41 @@ def predict(image: PIL.Image.Image, score_threshold: float,
     probs = probs[1]  # foreground
     probs = PIL.Image.fromarray(probs.cpu().numpy()).resize(image.size)
 
-    mask = np.asarray(probs)
+    mask = np.asarray(probs).copy()
     mask[mask < score_threshold] = 0
     mask[mask > 0] = 1
     mask = mask.astype(bool)
 
-    res = np.asarray(image)
+    res = np.asarray(image).copy()
     res[~mask] = 255
     return res
 
 
-def main():
-    args = parse_args()
-    device = torch.device(args.device)
+image_paths = load_sample_image_paths()
+examples = [[path.as_posix(), 0.5] for path in image_paths]
 
-    image_paths = load_sample_image_paths()
-    examples = [[path.as_posix(), args.score_threshold]
-                for path in image_paths]
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+model, final_head = load_model(device)
+transform = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
-    model, final_head = load_model(device)
-    transform = T.Normalize(mean=[0.485, 0.456, 0.406],
-                            std=[0.229, 0.224, 0.225])
+func = functools.partial(predict,
+                         transform=transform,
+                         device=device,
+                         model=model,
+                         final_head=final_head)
 
-    func = functools.partial(predict,
-                             transform=transform,
-                             device=device,
-                             model=model,
-                             final_head=final_head)
-    func = functools.update_wrapper(func, predict)
-
-    gr.Interface(
-        func,
-        [
-            gr.inputs.Image(type='pil', label='Input'),
-            gr.inputs.Slider(0,
-                             1,
-                             step=args.score_slider_step,
-                             default=args.score_threshold,
-                             label='Score Threshold'),
-        ],
-        gr.outputs.Image(label='Masked'),
-        examples=examples,
-        title=TITLE,
-        description=DESCRIPTION,
-        article=ARTICLE,
-        theme=args.theme,
-        allow_flagging=args.allow_flagging,
-        live=args.live,
-    ).launch(
-        enable_queue=args.enable_queue,
-        server_port=args.port,
-        share=args.share,
-    )
-
-
-if __name__ == '__main__':
-    main()
+gr.Interface(
+    fn=func,
+    inputs=[
+        gr.Image(type='pil', label='Input'),
+        gr.Slider(label='Score Threshold',
+                  minimum=0,
+                  maximum=1,
+                  step=0.05,
+                  value=0.5),
+    ],
+    outputs=gr.Image(label='Masked'),
+    examples=examples,
+    title=TITLE,
+    description=DESCRIPTION,
+).queue().launch(show_api=False)
