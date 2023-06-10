@@ -22,12 +22,7 @@ sys.path.insert(0, 'bizarre-pose-estimator')
 
 from _util.twodee_v0 import I as ImageWrapper
 
-TITLE = 'ShuhongChen/bizarre-pose-estimator (segmenter)'
-DESCRIPTION = 'This is an unofficial demo for https://github.com/ShuhongChen/bizarre-pose-estimator.'
-
-HF_TOKEN = os.getenv('HF_TOKEN')
-MODEL_REPO = 'hysts/bizarre-pose-estimator-models'
-MODEL_FILENAME = 'segmenter.pth'
+DESCRIPTION = '# [ShuhongChen/bizarre-pose-estimator (segmenter)](https://github.com/ShuhongChen/bizarre-pose-estimator)'
 
 
 def load_sample_image_paths() -> list[pathlib.Path]:
@@ -36,8 +31,7 @@ def load_sample_image_paths() -> list[pathlib.Path]:
         dataset_repo = 'hysts/sample-images-TADNE'
         path = huggingface_hub.hf_hub_download(dataset_repo,
                                                'images.tar.gz',
-                                               repo_type='dataset',
-                                               use_auth_token=HF_TOKEN)
+                                               repo_type='dataset')
         with tarfile.open(path) as f:
             f.extractall()
     return sorted(image_dir.glob('*'))
@@ -45,9 +39,8 @@ def load_sample_image_paths() -> list[pathlib.Path]:
 
 def load_model(
         device: torch.device) -> tuple[torch.nn.Module, torch.nn.Module]:
-    path = huggingface_hub.hf_hub_download(MODEL_REPO,
-                                           MODEL_FILENAME,
-                                           use_auth_token=HF_TOKEN)
+    path = huggingface_hub.hf_hub_download(
+        'public-data/bizarre-pose-estimator-models', 'segmenter.pth')
     ckpt = torch.load(path)
 
     model = torchvision.models.segmentation.deeplabv3_resnet101()
@@ -114,24 +107,31 @@ device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 model, final_head = load_model(device)
 transform = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 
-func = functools.partial(predict,
-                         transform=transform,
-                         device=device,
-                         model=model,
-                         final_head=final_head)
+fn = functools.partial(predict,
+                       transform=transform,
+                       device=device,
+                       model=model,
+                       final_head=final_head)
 
-gr.Interface(
-    fn=func,
-    inputs=[
-        gr.Image(type='pil', label='Input'),
-        gr.Slider(label='Score Threshold',
-                  minimum=0,
-                  maximum=1,
-                  step=0.05,
-                  value=0.5),
-    ],
-    outputs=gr.Image(label='Masked'),
-    examples=examples,
-    title=TITLE,
-    description=DESCRIPTION,
-).queue().launch(show_api=False)
+with gr.Blocks(css='style.css') as demo:
+    gr.Markdown(DESCRIPTION)
+    with gr.Row():
+        with gr.Column():
+            image = gr.Image(label='Input', type='pil')
+            threshold = gr.Slider(label='Score Threshold',
+                                  minimum=0,
+                                  maximum=1,
+                                  step=0.05,
+                                  value=0.5)
+            run_button = gr.Button('Run')
+        with gr.Column():
+            result = gr.Image(label='Masked')
+
+    inputs = [image, threshold]
+    gr.Examples(examples=examples,
+                inputs=inputs,
+                outputs=result,
+                fn=fn,
+                cache_examples=os.getenv('CACHE_EXAMPLES') == '1')
+    run_button.click(fn=fn, inputs=inputs, outputs=result, api_name='predict')
+demo.queue(max_size=15).launch()
